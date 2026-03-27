@@ -1,59 +1,114 @@
-
 import { Link, useNavigate } from 'react-router-dom'
 import { assets } from '../assets/assets'
-import { MenuIcon, SearchIcon, TicketPlus, XIcon } from 'lucide-react'
-import { React, use, useState } from 'react'
+import { MenuIcon, SearchIcon, TicketPlus, XIcon, Heart, LayoutDashboard, Home, Film, Theater, Rocket } from 'lucide-react'
+import { useState } from 'react'
 import { useUser, useClerk, UserButton } from '@clerk/clerk-react'
-
+import { useAppContext } from '../context/AppContext'
 
 const Navbar = () => {
+  const [isOpen, setIsOpen] = useState(false)
+  const { user } = useUser()
+  const { openSignIn } = useClerk()
+  const navigate = useNavigate()
+  const { favoriteMovies, isAdmin } = useAppContext() // ✅ Destructured isAdmin
 
-    const [isOpen, setIsOpen] = useState(false)
-    const { user } = useUser()
-    const { openSignIn } = useClerk()
+  const navLinks = [
+    { name: 'Home', path: '/', icon: <Home className="w-4 h-4" /> },
+    { name: 'Movies', path: '/movies', icon: <Film className="w-4 h-4" /> },
+    { name: 'Theaters', path: '/', icon: <Theater className="w-4 h-4" /> },
+    { name: 'Releases', path: '/', icon: <Rocket className="w-4 h-4" /> },
+  ]
 
-    const navigate = useNavigate()
+  return (
+    <nav className='fixed top-0 left-0 z-50 w-full flex items-center justify-between px-6 md:px-16 lg:px-36 py-5 backdrop-blur-xl bg-black/60 border-b border-white/5'>
+      
+      {/* 🚀 LOGO */}
+      <Link to='/' className='max-md:flex-1 transition-transform hover:scale-105'>
+        <img src={assets.logo} alt="QuickShow Logo" className='w-36 h-auto' />
+      </Link>
 
-    return (
-        <div className='fixed top-0 left-0 z-50 w-full flex items-center justify-between px-6 md:px-16 lg:px-36 py-5'>
-            <Link to='/' className='max-md:flex-1'>
-                <img src={assets.logo} alt="" className='w-36 h-auto' />
-            </Link>
-            <div className={`max-md:absolute max-md:top-0 max-md:left-0 max-md:font-medium max-md:text-lg z-50 flex flex-col md:flex-row items-center max-md:justify-center gap-8 min-md:px-8 py-3 max-md:h-screen min-md:rounded-full backdrop-blur bg-black/70 md:bg-white/10 md:border border-gray-300/20 overflow-hidden transition-[width] duration-300 ${isOpen ? 'max-md:w-full' : 'max-md:w-0'}`}>
-                <XIcon className='top-6 right-6 w-6 h-6 cursor-pointer md:hidden' onClick={() => setIsOpen(!isOpen)} />
+      {/* 📱 NAVIGATION LINKS */}
+      <div className={`max-md:absolute max-md:top-0 max-md:left-0 z-50 flex flex-col md:flex-row items-center max-md:justify-center gap-8 py-3 max-md:h-screen md:px-8 md:rounded-full backdrop-blur-2xl bg-black/90 md:bg-white/5 md:border border-white/10 transition-all duration-500 ${isOpen ? 'max-md:w-full opacity-100' : 'max-md:w-0 opacity-0 md:opacity-100 overflow-hidden'}`}>
+        
+        <XIcon className='absolute top-8 right-8 w-8 h-8 cursor-pointer md:hidden text-gray-400 hover:text-white' onClick={() => setIsOpen(false)} />
 
-                <Link onClick={() => { scrollTo(0, 0); setIsOpen(false) }}
-                    to='/'>Home</Link>
-                <Link onClick={() => { scrollTo(0, 0); setIsOpen(false) }}
-                    to='/movies'>Movies</Link>
-                <Link onClick={() => { scrollTo(0, 0); setIsOpen(false) }}
-                    to='/'>Theaters</Link>
-                <Link onClick={() => { scrollTo(0, 0); setIsOpen(false) }}
-                    to='/'>Releases</Link>
-                <Link onClick={() => { scrollTo(0, 0); setIsOpen(false) }}
-                    to='/favorite'>Favorites</Link>
-            </div>
+        {navLinks.map((link) => (
+          <Link 
+            key={link.name}
+            onClick={() => { window.scrollTo(0, 0); setIsOpen(false) }} 
+            to={link.path}
+            className="text-sm font-medium text-gray-400 hover:text-primary transition-colors flex items-center gap-2"
+          >
+            {link.name}
+          </Link>
+        ))}
 
-            <div className='flex items-center gap-8'>
-                <SearchIcon className='max-md:hidden w-6 h-6 cursor-pointer' />
-                {
-                    !user ? (
-                        <button onClick={openSignIn} className='px-4 py-1 sm:px-7 sm:py-2 bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer'>Login</button>
-                    ) : (
-                        <UserButton>
+        {favoriteMovies.length > 0 && (
+          <Link 
+            onClick={() => { window.scrollTo(0, 0); setIsOpen(false) }} 
+            to='/favorite'
+            className="text-sm font-medium text-gray-400 hover:text-red-500 transition-colors flex items-center gap-2"
+          >
+            <Heart className="w-4 h-4" /> Favorites
+          </Link>
+        )}
+      </div>
 
-                            <UserButton.MenuItems>
-                                <UserButton.Action label="My Bookings" labelIcon={<TicketPlus width={15} onClick={() => navigate('/my-bookings')} />}/>
-                            </UserButton.MenuItems>
-                        </UserButton>
-                    )
+      {/* 👤 ACTIONS & PROFILE */}
+      <div className='flex items-center gap-6'>
+        <SearchIcon className='max-md:hidden w-5 h-5 text-gray-400 cursor-pointer hover:text-primary transition-all hover:scale-110' />
+
+        {!user ? (
+          <button
+            onClick={openSignIn}
+            className='px-7 py-2 bg-primary hover:bg-primary/80 text-white transition-all rounded-full font-bold text-sm shadow-lg shadow-primary/20'
+          >
+            Login
+          </button>
+        ) : (
+          <div className='flex items-center gap-4'>
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-10 h-10 border-2 border-primary/20 hover:border-primary/50 transition-all",
                 }
+              }}
+            >
+              <UserButton.MenuItems>
+                {/* ✅ FIXED: Removed .Label and standard divs. Using .Action only */}
+                
+                <UserButton.Action
+                  label="My Bookings"
+                  labelIcon={<TicketPlus size={16} className="text-primary" />}
+                  onClick={() => navigate('/my-bookings')}
+                />
 
-            </div>
+                <UserButton.Action
+                  label="Favorite Movies"
+                  labelIcon={<Heart size={16} className="text-red-500" />}
+                  onClick={() => navigate('/favorite')}
+                />
 
-            <MenuIcon className=' max-md:ml-4 w-8 h-8 cursor-pointer md:hidden' onClick={() => setIsOpen(!isOpen)} />
-        </div>
-    )
+                {/* ✅ ONLY shows if isAdmin state is true */}
+                {isAdmin && (
+                  <UserButton.Action
+                    label="Admin Panel"
+                    labelIcon={<LayoutDashboard size={16} className="text-green-500" />}
+                    onClick={() => navigate('/admin')}
+                  />
+                )}
+              </UserButton.MenuItems>
+            </UserButton>
+          </div>
+        )}
+
+        <MenuIcon
+          className='ml-4 w-7 h-7 cursor-pointer md:hidden text-white'
+          onClick={() => setIsOpen(true)}
+        />
+      </div>
+    </nav>
+  )
 }
 
 export default Navbar

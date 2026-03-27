@@ -1,69 +1,121 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import BlurCircle from '../components/BlurCircle'
+import { useAppContext } from '../context/AppContext'
 import Loading from '../components/Loading'
-import { dummyBookingData } from '../assets/assets'
-import timeFormat from '../lib/timeFormat'
-import { dateFormat } from '../lib/dateFormat'
-
-
+import { Calendar, Ticket, Clock, ReceiptText, MapPin } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const MyBookings = () => {
-
-  const currency = import.meta.env.VITE_CURRENCY
-
+  const { axios } = useAppContext()
   const [bookings, setBookings] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
 
-  const getMyBookings = async () => {
-    setBookings(dummyBookingData)
-    setIsLoading(false)
+  const fetchBookings = async () => {
+    try {
+      setLoading(true)
+      // ✅ FIX 1: correct endpoint is /api/booking/user not /api/booking/list
+      // ✅ FIX 2: no need to manually pass token — axios interceptor handles it
+      const { data } = await axios.get('/api/booking/user')
+      if (data.success) setBookings(data.bookings)
+    } catch (error) {
+      toast.error("Failed to load bookings")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(() => {
-    getMyBookings()
-  }, [])
+  useEffect(() => { fetchBookings() }, [])
 
-  return !isLoading ? (
-    <div className='relative px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]'>
-      <BlurCircle top="100px" left="100px" />
-      <div>
-        <BlurCircle bottom="0px" left="600px" />
+  if (loading) return <Loading />
+
+  return (
+    <div className='min-h-screen bg-[#020202] text-white pt-32 pb-20 px-6 md:px-20 lg:px-40'>
+      <div className="flex items-center gap-4 mb-12">
+        <ReceiptText className="w-8 h-8 text-primary" />
+        <h1 className='text-4xl font-black uppercase tracking-tighter'>My Tickets</h1>
       </div>
-      <h1 className='text-lg font-semibold mb-4'>My Bookings</h1>
 
-      {bookings.map((item, index) => (
-        <div key={index}className='flex flex-col md:flex-row justify-between bg-primary/8 border border-primary/20 rounded-lg mt-4 p-2 max-w-3xl'>
-          <div className='flex flex-col md:flex-row'>
-            <img src={item.show.movie.poster_path} alt="" className='md:max-w-45 aspect-video h-auto object-cover object-bottom rounded' />
-            <div className='flex flex-col  p-4'>
-              <p className='text-lg font-semibold'>{item.show.movie.title}</p>
-              <p className='text-gray-400 text-sm'>{timeFormat(item.show.movie.runtime)}</p>
-              <p className='text-gray-400 text-sm mt-auto'>{dateFormat(item.show.showDateTime)}</p>
-            </div>
-          </div>
-
-          <div className='flex flex-col md:items-end md:text-right justify-between p-4 '>
-            <div className='flex items-center gap-4'>
-              <p className='text-2xl font-semibold mb-3'>{currency}{item.amount}</p>
-              {!item.isPaid && <button className='bg-primary px-4 py-1.5 mb-3 text-sm rounded-full font-medium cursor-pointer'>Pay Now</button>}
-              </div>
-
-              <div className='text-sm'>
-                <p><span className='text-gray-400'>Total Tickets:</span>{item.bookedSeats.length}</p>
-                <p><span className='text-gray-400'>Seat Number:</span>{item.bookedSeats.join(",")}</p>
-              </div>
-
-            </div>
-
+      {bookings.length === 0 ? (
+        <div className="text-center py-24 bg-white/[0.02] rounded-[3rem] border border-dashed border-white/10">
+          <Ticket className="w-16 h-16 mx-auto text-gray-800 mb-4" />
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No active bookings found</p>
         </div>
+      ) : (
+        <div className='grid grid-cols-1 xl:grid-cols-2 gap-10'>
+          {bookings.map((booking) => (
+            <div
+              key={booking._id}
+              className='flex flex-col md:flex-row bg-[#0a0a0a] rounded-[2rem] overflow-hidden border border-white/5 shadow-2xl group hover:border-primary/20 transition-all duration-500'
+            >
+              {/* Left: Poster */}
+              <div className='w-full md:w-52 h-72 md:h-auto shrink-0 relative'>
+                <img
+                  // ✅ FIX 3: use booking.show.movie.poster directly (not poster_path)
+                  src={booking.show?.movie?.poster}
+                  className='w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700'
+                  alt={booking.show?.movie?.title}
+                  onError={(e) => { e.target.src = 'https://via.placeholder.com/200x300?text=No+Image' }}
+                />
+                <div className='absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent'></div>
+              </div>
 
-      ))}
+              {/* Right: Ticket Body */}
+              <div className='flex-grow p-8 flex flex-col justify-between relative'>
 
+                {/* Perforation Effect */}
+                <div className="hidden md:block absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-[#020202] rounded-full border-r border-white/5"></div>
 
+                <div>
+                  <div className='flex justify-between items-start mb-4'>
+                    <h2 className='text-2xl font-black leading-tight uppercase italic tracking-tighter'>
+                      {booking.show?.movie?.title}
+                    </h2>
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-[9px] font-black uppercase tracking-widest border border-primary/20 shrink-0 ml-2">
+                      {booking.isPaid ? 'Confirmed' : 'Pending'}
+                    </span>
+                  </div>
 
+                  <div className='space-y-3 mt-6'>
+                    <div className='flex items-center gap-3 text-xs font-bold text-gray-400'>
+                      <Calendar className='w-4 h-4 text-primary shrink-0' />
+                      {/* ✅ FIX 4: use booking.show.date instead of showDateTime */}
+                      {booking.show?.date || 'N/A'}
+                    </div>
+                    <div className='flex items-center gap-3 text-xs font-bold text-gray-400'>
+                      <Clock className='w-4 h-4 text-primary shrink-0' />
+                      {booking.show?.time || 'N/A'}
+                    </div>
+                    <div className='flex items-center gap-3 text-xs font-bold text-gray-400'>
+                      <Ticket className='w-4 h-4 text-primary shrink-0' />
+                      Seats: <span className='text-white ml-1'>{booking.bookedSeats?.join(', ')}</span>
+                    </div>
+                    <div className='flex items-center gap-3 text-xs font-bold text-gray-400'>
+                      <MapPin className='w-4 h-4 text-primary shrink-0' />
+                      Amount: <span className='text-white ml-1'>${booking.amount?.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer with Booking ID & QR */}
+                <div className='mt-8 pt-6 border-t border-dashed border-white/10 flex items-center justify-between'>
+                  <div>
+                    <p className='text-[8px] text-gray-600 uppercase font-black tracking-[0.2em] mb-1'>Booking Reference</p>
+                    <p className='text-xs font-mono text-gray-400'>#{booking._id?.slice(-10).toUpperCase()}</p>
+                  </div>
+                  <div className='w-14 h-14 bg-white p-1.5 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)]'>
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${booking._id}`}
+                      alt="QR Code"
+                      className='w-full h-full'
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-  ) : <Loading />
+  )
 }
 
 export default MyBookings

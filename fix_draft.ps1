@@ -1,0 +1,23 @@
+$filePath = 'C:\Users\swaya\AppData\Local\Temp\postman-draft-0061783c-b4ac-477c-be96-f1de10d3467c.request.yaml'
+$content = @"
+type: http
+name: ""
+url: http://localhost:3000/api/shows/add
+method: POST
+queryParams: []
+body:
+  type: json
+  content: |-
+    {
+        "movieId": "1265609",
+        "showsInput": [
+            {
+                "date": "2025-06-05",
+                "time": ["16:00"]
+            }
+        ],
+        "ShowPrice": 300
+    }
+"@
+[System.IO.File]::WriteAllText($filePath, $content, [System.Text.Encoding]::UTF8)
+Write-Host "Done"

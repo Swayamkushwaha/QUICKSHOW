@@ -1,86 +1,82 @@
-import React, { useEffect, useState } from 'react'
-import { dummyShowsData } from '../../assets/assets'
-import Title from '../../components/admin/Title'
-import Loading from '../../components/Loading'
-import { dateFormat } from '../../lib/dateFormat'
+import React, { useEffect, useState } from "react";
+import Title from "../../components/admin/Title";
+import Loading from "../../components/Loading";
+import { dateFormat } from "../../lib/dateFormat";
+import { useAppContext } from "../../context/AppContext";
+import toast from "react-hot-toast";
 
 const ListShows = () => {
-
-  const currency = import.meta.env.VITE_CURRENCY
-
-  const [shows, setShows] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { axios, getToken, user } = useAppContext();
+  const currency = import.meta.env.VITE_CURRENCY || "$";
+  const [shows, setShows] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const getAllShows = async () => {
     try {
-      setShows([{
-        movie: dummyShowsData[0],
-        showDateTime: "2025-06-30T02:30:00.000Z",
-        showPrice: 59,
-        occupiedSeats: {
-          A1: "user_1",
-          B1: "user_2",
-          C1: "USER-3"
-        }
-      }])
-
-      setLoading(false)
-
+      const { data } = await axios.get("/api/admin/all-shows", {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+      if (data.success) {
+        setShows(data.shows);
+      }
     } catch (error) {
-      console.log(error)
+      toast.error("Failed to load shows");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  useEffect(() => {
-    getAllShows()
-  }, [])
+  useEffect(() => { if (user) getAllShows() }, [user]);
 
   return !loading ? (
-    <>
-      <Title text="List" text2="Shows" />
-
-      <div className="max-w-4xl mt-6 overflow-x-auto">
-        <table className="w-full border-collapse rounded-md overflow-hidden text-nowrap">
-
-          <thead>
-            <tr className="bg-primary/20 text-left text-white">
-              <th className="p-2 font-medium pl-5">Movie Name</th>
-              <th className="p-2 font-medium pl-5">Show Time</th>
-              <th className="p-2 font-medium pl-5">Total Bookings</th>
-              <th className="p-2 font-medium pl-5">Earnings</th>
-            </tr>
-          </thead>
-
-          <tbody className="text-sm font-light">
-            {shows.map((show, index) => (
-
-              <tr key={index} className="border-b border-primary/10 bg-primary/5 even:bg-primary/10">
-
-                <td className="p-2 min-w-45 pl-5">
-                  {show.movie.title}
-                </td>
-
-                <td className="p-2">
-                  {dateFormat(show.showDateTime)}
-                </td>
-
-                <td className="p-2">
-                  {Object.keys(show.occupiedSeats).length}
-                </td>
-
-                <td className="p-2">
-                  {currency}{Object.keys(show.occupiedSeats).length * show.showPrice}
-                </td>
-
+    <div className="p-4 md:p-8 text-white min-h-screen">
+      <Title text1="Operational" text2="Shows" />
+      <div className="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead>
+              <tr className="bg-white/5 text-gray-500 text-[10px] uppercase tracking-[0.2em] border-b border-white/10">
+                <th className="p-5">Movie Detail</th>
+                <th className="p-5">Showtime</th>
+                <th className="p-5">Occupancy</th>
+                <th className="p-5 text-right">Gross Revenue</th>
               </tr>
-
-            ))}
-          </tbody>
-
-        </table>
+            </thead>
+            <tbody>
+              {shows.map((show, index) => {
+                const occupancy = Object.keys(show.occupiedSeats || {}).length; //
+                return (
+                  <tr key={show._id || index} className="border-t border-white/5 group hover:bg-white/[0.02] transition">
+                    <td className="p-5 flex items-center gap-4">
+                      <img 
+                        src={show.movie?.poster_path?.startsWith("http") ? show.movie.poster_path : `https://image.tmdb.org/t/p/w500${show.movie?.poster_path}`} 
+                        className="h-12 w-9 object-cover rounded shadow-lg border border-white/10" 
+                      />
+                      <div>
+                        <p className="font-bold text-sm group-hover:text-primary transition">{show.movie?.title}</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-tighter">{show.movie?.original_language}</p>
+                      </div>
+                    </td>
+                    <td className="p-5 text-xs font-mono text-gray-400">{dateFormat(show.showDateTime)}</td>
+                    <td className="p-5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">{occupancy}</span>
+                        <span className="text-[10px] text-gray-500">Tickets Sold</span>
+                      </div>
+                    </td>
+                    <td className="p-5 text-right">
+                      <p className="font-bold text-emerald-400">{currency}{occupancy * (show.showPrice || 0)}</p>
+                      <p className="text-[10px] text-gray-600 font-mono tracking-tighter">@{currency}{show.showPrice} ea</p>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </>
+    </div>
   ) : <Loading />
 }
 
-export default ListShows
+export default ListShows;
