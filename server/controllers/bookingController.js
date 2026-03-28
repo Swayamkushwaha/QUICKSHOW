@@ -2,6 +2,7 @@ import Show from "../models/Show.js";
 import Booking from "../models/Booking.js";
 import Stripe from 'stripe';
 import { verifyToken } from '@clerk/express';
+import { inngest } from '../inngest/index.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -87,6 +88,16 @@ export const createBooking = async (req, res) => {
     });
     showData.markModified('occupiedSeats');
     await showData.save();
+
+    // ✅ Fire Inngest event — auto-release seats if unpaid after 5 mins
+    await inngest.send({
+      name: "booking/seats.held",
+      data: {
+        bookingId: booking._id.toString(),
+        showId: showData._id.toString(),
+        seats: selectedSeats,
+      }
+    });
 
     // Create Stripe Checkout Session
     const origin = process.env.ORIGIN || "http://localhost:5173";

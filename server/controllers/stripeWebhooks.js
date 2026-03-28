@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import Booking from "../models/Booking.js";
+import { inngest } from "../inngest/index.js";
 
 export const stripeWebhooks = async (request, response) => {
   const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -7,7 +8,6 @@ export const stripeWebhooks = async (request, response) => {
 
   let event;
 
-  // ✅ FIX 1: request.body must be raw buffer — see server.js webhook route
   try {
     event = stripeInstance.webhooks.constructEvent(
       request.body,
@@ -22,8 +22,6 @@ export const stripeWebhooks = async (request, response) => {
   try {
     switch (event.type) {
 
-      // ✅ FIX 2: listen to checkout.session.completed, not payment_intent.succeeded
-      // This fires immediately when Stripe confirms payment is complete
       case "checkout.session.completed": {
         const session = event.data.object;
         const { bookingId } = session.metadata;
@@ -33,12 +31,29 @@ export const stripeWebhooks = async (request, response) => {
           break;
         }
 
-        await Booking.findByIdAndUpdate(bookingId, {
-          isPaid: true,
-          paymentLink: "",
-        });
+        // Mark booking as paid and populate movie details
+        const booking = await Booking.findByIdAndUpdate(
+          bookingId,
+          { isPaid: true, paymentLink: "" },
+          { new: true }
+        ).populate({ path: 'show', populate: { path: 'movie' } });
 
         console.log("Booking marked as paid:", bookingId);
+
+        // Fire Inngest event to send confirmation email
+        const customerEmail = session.customer_details?.email;
+
+        if (customerEmail && booking) {
+          await inngest.send({
+            name: "booking/confirmed",
+            data: {
+              email: customerEmail,
+              bookingId: booking._id.toString(),
+            }
+          });
+          console.log("Email event fired for:", customerEmail);
+        }
+
         break;
       }
 
@@ -49,7 +64,6 @@ export const stripeWebhooks = async (request, response) => {
     response.json({ received: true });
 
   } catch (error) {
-    // ✅ FIX 3: was using undefined 'err' variable — now correctly uses 'error'
     console.error("Webhook processing error:", error);
     response.status(500).send("Internal Server Error");
   }
