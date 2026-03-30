@@ -5,7 +5,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 // 1. Configure Axios base URL
-axios.defaults.baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
+axios.defaults.baseURL =
+  import.meta.env.VITE_BASE_URL || "https://quickshow-yml0.onrender.com";
 
 export const AppContext = createContext();
 
