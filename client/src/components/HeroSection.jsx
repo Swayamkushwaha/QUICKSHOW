@@ -1,51 +1,72 @@
-import React from 'react'
-import { assets } from '../assets/assets'
-import { ArrowRight, CalendarIcon, ClockIcon } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import React from 'react';
+import { ArrowRight, CalendarIcon, ClockIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-// ✅ FIX: import the image directly so Vite bundles it correctly
-// bg-[url("backgroundImage.png")] breaks on Vercel because it's a bare filename
-// — Vite doesn't process strings inside Tailwind's arbitrary url() at build time
-import backgroundImage from '../assets/backgroundImage.png'
+// 1. IMPORT YOUR IMAGE (This is the key fix for Vercel/Vite)
+// Ensure the path to your assets folder is correct relative to this file
+import backgroundImage from '../assets/backgroundImage.png';
+
+// 2. ASSUMED LOGO IMPORT (Adjust the path to match your assets file)
+// import { assets } from '../assets/assets';
 
 const HeroSection = () => {
-  const navigate = useNavigate()
+    const navigate = useNavigate();
 
-  return (
-    <div
-      className='flex flex-col items-start justify-center gap-4 px-6 md:px-16 lg:px-36 h-screen bg-cover bg-center'
-      // ✅ FIX: use inline style with the imported image — Vite hashes and bundles it
-      style={{ backgroundImage: `url(${backgroundImage})` }}
-    >
-      <img src={assets.marvelLogo} alt="" className="max-h-11 lg:h-11 mt-20" />
+    // If you don't have an assets file yet, you can replace 'assets.marvelLogo' 
+    // with a direct import or a string URL.
+    const marvelLogo = "https://upload.wikimedia.org/wikipedia/commons/b/b9/Marvel_Logo.svg"; 
 
-      <h1 className='text-[70px] md:text-[70px] md:leading-18 font-semibold max-w-110'>
-        Guardians <br />of the Galaxy
-      </h1>
+    return (
+        <div 
+            className='relative flex flex-col items-start justify-center gap-4 px-6 md:px-16 lg:px-36 h-screen bg-cover bg-center text-white'
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+        >
+            {/* Overlay to make text more readable if the image is bright */}
+            <div className="absolute inset-0 bg-black/40 -z-10"></div>
 
-      <div className='flex items-center gap-4 text-gray-300'>
-        <span>Action | Adventure | Sci-Fi</span>
-        <div className='flex items-center gap-1'>
-          <CalendarIcon className='w-[18px] h-[18px]' /> 2018
+            {/* Marvel Logo */}
+            <img 
+                src={marvelLogo} 
+                alt="Marvel Logo" 
+                className="max-h-11 lg:h-11 mt-20 object-contain" 
+            />
+
+            {/* Main Title */}
+            <h1 className='text-5xl md:text-7xl lg:text-[70px] leading-tight md:leading-[1.1] font-bold max-w-2xl'>
+                Guardians <br /> of the Galaxy
+            </h1>
+
+            {/* Metadata Section */}
+            <div className='flex flex-wrap items-center gap-4 text-gray-300 font-medium'>
+                <span>Action | Adventure | Sci-Fi</span>
+                
+                <div className='flex items-center gap-1 border-l border-gray-500 pl-4'>
+                    <CalendarIcon className='w-4 h-4' /> 
+                    <span>2018</span>
+                </div>
+
+                <div className='flex items-center gap-1 border-l border-gray-500 pl-4'>
+                    <ClockIcon className='w-4 h-4' /> 
+                    <span>2h 8m</span>
+                </div>
+            </div>
+
+            {/* Description */}
+            <p className='max-w-md text-gray-300 text-lg leading-relaxed'>
+                A group of intergalactic criminals must pull together to stop a fanatical warrior with 
+                plans to purge the universe.
+            </p>
+
+            {/* CTA Button */}
+            <button 
+                onClick={() => navigate('/movies')} 
+                className='mt-4 flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 text-white transition-all rounded-full font-bold cursor-pointer group'
+            >
+                Explore Movies
+                <ArrowRight className='w-5 h-5 group-hover:translate-x-1 transition-transform' />
+            </button>
         </div>
-        <div className='flex items-center gap-1'>
-          <ClockIcon className='w-4.5 h-4.5' /> 2h 8m
-        </div>
-      </div>
+    );
+};
 
-      <p className='max-w-md text-gray-300'>
-        Lorem ipsum dolor, sit amet consectetur adipisicing elit. Eligendi corrupti quibusdam modi blanditiis mollitia error neque pariatur dolores impedit.
-      </p>
-
-      <button
-        onClick={() => navigate('/movies')}
-        className='flex items-center gap-1 px-6 py-3 text-sm bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer'
-      >
-        Explore Movies
-        <ArrowRight className='w-5 h-5' />
-      </button>
-    </div>
-  )
-}
-
-export default HeroSection
+export default HeroSection;
