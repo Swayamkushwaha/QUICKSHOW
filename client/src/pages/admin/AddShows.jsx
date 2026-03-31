@@ -1,29 +1,24 @@
 import React, { useEffect, useState } from "react";
-import { StarIcon, CalendarDaysIcon, BanknotesIcon, PlusIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
+import { PlusIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useAppContext } from "../../context/AppContext";
 import toast from "react-hot-toast";
 
 const AddShows = () => {
-  const { axios, getToken } = useAppContext();
+  const { axios, user } = useAppContext();
   const currency = import.meta.env.VITE_CURRENCY || "$";
 
-  // State Management
   const [nowPlayingMovies, setNowPlayingMovies] = useState([]);
-  const [selectedMovie, setSelectedMovie] = useState(null);
-  const [showPrice, setShowPrice] = useState("");
-  const [dateTimeInput, setDateTimeInput] = useState("");
+  const [selectedMovie, setSelectedMovie]       = useState(null);
+  const [showPrice, setShowPrice]               = useState("");
+  const [dateTimeInput, setDateTimeInput]       = useState("");
   const [dateTimeSelection, setDateTimeSelection] = useState({});
-  const [addingShow, setAddingShow] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [addingShow, setAddingShow]             = useState(false);
+  const [loading, setLoading]                   = useState(true);
 
-  // Fetch Movies from TMDB via Backend
   const fetchNowPlayingMovies = async () => {
     try {
       setLoading(true);
-      const token = await getToken();
-      const { data } = await axios.get("/api/shows/now-playing", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await axios.get("/api/shows/now-playing");
       if (data.success) {
         setNowPlayingMovies(data.movies);
       } else {
@@ -37,11 +32,11 @@ const AddShows = () => {
     }
   };
 
-  useEffect(() => { 
-    fetchNowPlayingMovies(); 
-  }, []);
+  useEffect(() => {
+    if (user) fetchNowPlayingMovies();
+    else setLoading(false);
+  }, [user]);
 
-  // Handle Adding Date/Time Slots
   const handleDateTimeAdd = () => {
     if (!dateTimeInput) return;
     const [date, time] = dateTimeInput.split("T");
@@ -52,7 +47,6 @@ const AddShows = () => {
     setDateTimeInput("");
   };
 
-  // Remove specific time slot
   const handleRemoveTime = (date, time) => {
     setDateTimeSelection((prev) => {
       const filtered = prev[date].filter((t) => t !== time);
@@ -64,40 +58,43 @@ const AddShows = () => {
     });
   };
 
-  // Submit Shows to Database
+  // ✅ UPDATED FUNCTION
   const handleAddShow = async () => {
     if (!selectedMovie || !showPrice || Object.keys(dateTimeSelection).length === 0) {
       return toast.error("Please fill all fields");
     }
     try {
       setAddingShow(true);
-      const token = await getToken();
+      
       const showsInput = Object.entries(dateTimeSelection).map(([date, times]) => ({
         date,
         time: times,
       }));
-      
-      const { data } = await axios.post("/api/shows/add", 
-        { movieId: selectedMovie, showPrice: Number(showPrice), showsInput },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+
+      const { data } = await axios.post("/api/shows/add", {
+        movieId: selectedMovie, // This is the numeric TMDB ID
+        showPrice: Number(showPrice),
+        showsInput,
+      });
 
       if (data.success) {
         toast.success("Shows added successfully");
-        setSelectedMovie(null); 
-        setShowPrice(""); 
+        setSelectedMovie(null);
+        setShowPrice("");
         setDateTimeSelection({});
       } else {
         toast.error(data.message);
       }
-    } catch (error) { 
-      toast.error("Error adding show to database"); 
+    } catch (error) {
+      // ✅ FIX: Capture and display the specific backend error message
+      const errorMessage = error.response?.data?.message || "Error adding show to database";
+      console.error("Submission Error:", error.response?.data || error.message);
+      toast.error(errorMessage);
     } finally {
       setAddingShow(false);
     }
   };
 
-  // ✅ Corrected Spinner Logic (Prevents accidental redirects)
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#0a0a0a] text-white">
@@ -116,51 +113,57 @@ const AddShows = () => {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          
-          {/* 🎬 Left Column: Movie Selection */}
           <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-2xl p-6">
             <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
               <span className="w-2 h-6 bg-primary rounded-full"></span> Now Playing
             </h2>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto max-h-[70vh] pr-2 custom-scrollbar">
-              {nowPlayingMovies.map((movie) => {
-                const movieId = movie.id || movie._id;
-                return (
-                  <div
-                    key={movieId}
-                    onClick={() => setSelectedMovie(movieId)}
-                    className={`group relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                      selectedMovie === movieId ? "border-primary scale-[0.98]" : "border-transparent hover:border-white/20"
-                    }`}
-                  >
-                    <img 
-                      src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} 
-                      className="w-full aspect-[2/3] object-cover" 
-                      alt={movie.title}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
-                    
-                    {selectedMovie === movieId && (
-                      <div className="absolute top-2 right-2 bg-primary p-1 rounded-full shadow-lg">
-                        <CheckCircleIcon className="w-5 h-5 text-white" />
-                      </div>
-                    )}
+            {nowPlayingMovies.length === 0 ? (
+              <div className="text-center py-20 text-gray-600">
+                <p className="text-sm font-bold uppercase tracking-widest">No movies found</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto max-h-[70vh] pr-2">
+                {nowPlayingMovies.map((movie) => {
+                  const movieId = movie.id || movie._id;
+                  return (
+                    <div
+                      key={movieId}
+                      onClick={() => setSelectedMovie(movieId)}
+                      className={`group relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                        selectedMovie === movieId
+                          ? "border-primary scale-[0.98]"
+                          : "border-transparent hover:border-white/20"
+                      }`}
+                    >
+                      <img
+                        src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                        className="w-full aspect-[2/3] object-cover"
+                        alt={movie.title}
+                        onError={(e) => { e.target.src = 'https://via.placeholder.com/200x300?text=No+Image' }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"/>
 
-                    <div className="absolute bottom-0 p-3 w-full">
-                      <p className="text-xs font-bold truncate">{movie.title}</p>
+                      {selectedMovie === movieId && (
+                        <div className="absolute top-2 right-2 bg-primary p-1 rounded-full shadow-lg">
+                          <CheckCircleIcon className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+
+                      <div className="absolute bottom-0 p-3 w-full">
+                        <p className="text-xs font-bold truncate">{movie.title}</p>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* ⚙️ Right Column: Configuration Panel */}
           <div className="space-y-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-10">
               <h2 className="text-xl font-semibold mb-6">Configuration</h2>
-              
+
               <div className="mb-6">
                 <label className="text-xs uppercase tracking-widest text-gray-500 font-bold mb-2 block">Ticket Price</label>
                 <div className="relative">

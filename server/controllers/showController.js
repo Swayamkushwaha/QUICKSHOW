@@ -2,36 +2,37 @@ import axios from 'axios';
 import Movie from "../models/Movie.js";
 import Show from '../models/Show.js';
 
-// 🎬 1. Get now playing movies from TMDB (Admin Panel)
+// 🎬 1. Get now playing movies from TMDB
 export const getNowPlayingMovies = async (req, res) => {
   try {
     const { data } = await axios.get('https://api.themoviedb.org/3/movie/now_playing', {
       headers: {
         accept: 'application/json',
-        // ✅ TMDB Read Access Token — must start with eyJ... (not the short API key)
-        // Get it from: themoviedb.org → Settings → API → Read Access Token
         Authorization: `Bearer ${process.env.TMDB_API_KEY}`
       }
     });
     res.json({ success: true, movies: data.results });
   } catch (error) {
     console.error("TMDB Fetch Error:", error.response?.data || error.message);
-    res.status(500).json({ 
-      success: false, 
-      message: error.response?.data?.status_message || "Failed to fetch from TMDB" 
+    res.status(500).json({
+      success: false,
+      message: error.response?.data?.status_message || "Failed to fetch from TMDB"
     });
   }
 };
 
-// ➕ 2. Add Shows (Admin Logic)
+// ➕ 2. Add Shows (Fixed ID and Loop Logic)
 export const addShow = async (req, res) => {
   try {
     const { movieId, showsInput, showPrice } = req.body;
-    let movie = await Movie.findById(movieId);
+
+    // ✅ FIX: Ensure ID is a String to match your Mongoose Schema [_id: String]
+    const stringMovieId = String(movieId);
+    let movie = await Movie.findById(stringMovieId);
 
     if (!movie) {
       const { data: movieData } = await axios.get(
-        `https://api.themoviedb.org/3/movie/${movieId}?append_to_response=credits`,
+        `https://api.themoviedb.org/3/movie/${stringMovieId}?append_to_response=credits`,
         {
           headers: {
             accept: 'application/json',
@@ -41,47 +42,46 @@ export const addShow = async (req, res) => {
       );
 
       movie = await Movie.create({
-        _id: String(movieId),
+        _id: stringMovieId,
         title: movieData.title,
         overview: movieData.overview,
-
-        // ✅ FIX: save as 'poster' (full URL) so all pages can use it directly
         poster: `https://image.tmdb.org/t/p/w500${movieData.poster_path}`,
         backdrop: `https://image.tmdb.org/t/p/original${movieData.backdrop_path}`,
-
         release_date: movieData.release_date,
         original_language: movieData.original_language,
         tagline: movieData.tagline || "",
         genres: movieData.genres.map(g => g.name),
         casts: movieData.credits?.cast?.slice(0, 10).map(c => ({
           name: c.name,
-          profile_path: c.profile_path
-            ? `https://image.tmdb.org/t/p/w185${c.profile_path}`
-            : null,
+          profile_path: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : null,
           character: c.character
         })) || [],
         vote_average: movieData.vote_average,
         runtime: movieData.runtime
       });
-
-      console.log(`Movie "${movieData.title}" saved successfully.`);
     }
 
     const showsToCreate = [];
-    showsInput.forEach(show => {
-      show.time.forEach(time => {
-        showsToCreate.push({
-          movie: movie._id,
-          // ✅ FIX: save date and time as separate fields
-          // so MyBookings can display them directly without parsing
-          date: show.date,
-          time: time,
-          showDateTime: new Date(`${show.date}T${time}`),
-          showPrice: Number(showPrice),
-          occupiedSeats: {}
-        });
+    if (Array.isArray(showsInput)) {
+      showsInput.forEach(show => {
+        if (show.time && Array.isArray(show.time)) {
+          show.time.forEach(time => {
+            showsToCreate.push({
+              movie: movie._id,
+              date: show.date,
+              time: time,
+              showDateTime: new Date(`${show.date}T${time}`),
+              showPrice: Number(showPrice),
+              occupiedSeats: {}
+            });
+          });
+        }
       });
-    });
+    }
+
+    if (showsToCreate.length === 0) {
+      return res.status(400).json({ success: false, message: "Please select valid showtimes" });
+    }
 
     await Show.insertMany(showsToCreate);
     res.json({ success: true, message: "Shows added successfully" });
@@ -95,10 +95,23 @@ export const addShow = async (req, res) => {
 // 🎬 3. Get all shows (Home/Movies Page)
 export const getShows = async (req, res) => {
   try {
-    const shows = await Show.find({}).populate('movie').sort({ showDateTime: 1 });
+    // We sort by date to show upcoming movies first
+    const shows = await Show.find({})
+      .populate('movie')
+      .sort({ showDateTime: 1 });
+
+    // Check if we actually got shows back
+    if (!shows) {
+      return res.json({ success: true, shows: [] });
+    }
+
     res.json({ success: true, shows });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Get Shows Error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Database error while fetching shows: " + error.message
+    });
   }
 };
 
@@ -126,12 +139,12 @@ export const getShow = async (req, res) => {
       showIds[dateKey].push(show._id);
     });
 
-    res.json({ 
-      success: true, 
-      movie, 
-      dateTime, 
-      showIds, 
-      showPrice: shows[0]?.showPrice || 0 
+    res.json({
+      success: true,
+      movie,
+      dateTime,
+      showIds,
+      showPrice: shows[0]?.showPrice || 0
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
