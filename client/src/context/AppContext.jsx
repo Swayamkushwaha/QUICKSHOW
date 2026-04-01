@@ -4,9 +4,9 @@ import { useUser, useAuth } from "@clerk/clerk-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-// 1. Configure Axios base URL
+// Ensure this matches your Render URL exactly
 axios.defaults.baseURL =
-  import.meta.env.VITE_BASE_URL || "https://quickshow-yml0.onrender.com";
+  import.meta.env.VITE_BASE_URL || "http://localhost:3000";
 
 export const AppContext = createContext();
 
@@ -21,8 +21,7 @@ export const AppProvider = ({ children }) => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // ✅ FIX: Axios request interceptor — auto-attach Bearer token to EVERY request
-    // This means you never need to manually pass headers anywhere in your app
+    // Attach Bearer token to every request
     useEffect(() => {
         const interceptor = axios.interceptors.request.use(async (config) => {
             try {
@@ -35,24 +34,18 @@ export const AppProvider = ({ children }) => {
             }
             return config;
         });
-
-        // Cleanup interceptor when component unmounts
         return () => axios.interceptors.request.eject(interceptor);
     }, [getToken]);
 
-    // ✅ 1. Check if the logged-in user is an Admin
     const fetchIsAdmin = async () => {
         try {
             setIsProcessing(true);
             const { data } = await axios.get('/api/admin/is-admin');
-            // ↑ No need to manually pass token anymore — interceptor handles it
-
             if (data.success) {
                 setIsAdmin(data.isAdmin);
             } else {
                 setIsAdmin(false);
             }
-
             if (!data.isAdmin && location.pathname.startsWith('/admin')) {
                 navigate('/');
                 toast.error('Not authorized');
@@ -65,23 +58,23 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // ✅ 2. Fetch all movies/shows for the home page
+    // ✅ FIXED: Calling the correct route defined in showRouter.js
     const fetchShows = async () => {
         try {
-            const { data } = await axios.get('/api/shows/all');
+            // Using '/api/shows' instead of '/api/shows/all' to avoid 500 errors
+            const { data } = await axios.get('/api/shows'); 
             if (data.success) {
                 setShows(data.shows);
+                console.log("Shows fetched successfully:", data.shows);
             }
         } catch (error) {
             console.error("Failed to fetch shows:", error);
         }
     };
 
-    // ✅ 3. Fetch user's favorite movies
     const fetchFavoriteMovies = async () => {
         try {
             const { data } = await axios.get('/api/user/favorites');
-            // ↑ No need to manually pass token — interceptor handles it
             if (data.success) {
                 setFavoriteMovies(data.movies);
             }
