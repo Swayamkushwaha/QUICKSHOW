@@ -8,13 +8,10 @@ const MovieCard = ({ movie }) => {
   const navigate = useNavigate()
   const { axios, getToken, user, fetchFavoriteMovies, favoriteMovies } = useAppContext()
 
-  // Check if this specific movie is already in the user's favorites
   const isFavorite = favoriteMovies?.some(m => m._id === movie._id)
 
   const handleFavorite = async (e) => {
-    // Prevent the click from triggering the navigate to MovieDetails
-    e.stopPropagation() 
-    
+    e.stopPropagation()
     try {
       if (!user) return toast.error("Please login to favorite movies")
 
@@ -33,11 +30,16 @@ const MovieCard = ({ movie }) => {
     }
   }
 
-  const imageUrl = movie?.poster_path 
-    ? (movie.poster_path.startsWith('http') 
-        ? movie.poster_path 
+  // ✅ Check poster first (MongoDB field), then poster_path (TMDB), then fallback
+  const imageUrl = movie?.poster
+    ? (movie.poster.startsWith('http')
+        ? movie.poster
+        : `https://image.tmdb.org/t/p/w500${movie.poster}`)
+    : movie?.poster_path
+    ? (movie.poster_path.startsWith('http')
+        ? movie.poster_path
         : `https://image.tmdb.org/t/p/w500${movie.poster_path}`)
-    : 'https://via.placeholder.com/500x750?text=No+Image';
+    : 'https://placehold.co/500x750?text=No+Image';
 
   return (
     <div 
@@ -64,23 +66,23 @@ const MovieCard = ({ movie }) => {
           <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500' : ''}`} />
         </button>
 
-        {/* Gradient Overlay for better text readability */}
+        {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-60"></div>
       </div>
 
       {/* 📝 Movie Info */}
       <div className="p-4 relative">
         <h3 className="font-bold text-sm truncate text-white mb-2 tracking-tight group-hover:text-primary transition-colors">
-            {movie?.title || "Untitled"}
+          {movie?.title || "Untitled"}
         </h3>
         
         <div className="flex items-center justify-between text-[11px] text-gray-400 font-medium">
           <div className="flex items-center gap-2">
             <span className="bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
-                {movie?.release_date?.split('-')[0] || "2026"}
+              {movie?.release_date?.split('-')[0] || "2026"}
             </span>
             <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-primary" /> {movie?.runtime || "0"}m
+              <Clock className="w-3 h-3 text-primary" /> {movie?.runtime || "0"}m
             </span>
           </div>
           
