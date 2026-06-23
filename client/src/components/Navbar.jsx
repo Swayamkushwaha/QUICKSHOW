@@ -67,6 +67,14 @@ const Navbar = () => {
           </button>
         ) : (
           <div className='flex items-center gap-4'>
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin')}
+                className='px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white transition-all rounded-full font-bold text-xs md:text-sm shadow-lg shadow-green-600/20'
+              >
+                Admin Panel
+              </button>
+            )}
             <UserButton
               appearance={{
                 elements: {
