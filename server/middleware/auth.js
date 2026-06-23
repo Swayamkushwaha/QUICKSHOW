@@ -26,12 +26,20 @@ export const protectAdmin = async (req, res, next) => {
 
     const user = await clerkClient.users.getUser(userId);
 
-    if (user.privateMetadata.role !== "admin") {
-      return res.json({ success: false, message: "not authorized" });
+    const adminEmails = [
+      "swayamkushwaha605@gmail.com",
+      process.env.ADMIN_EMAIL
+    ].filter(Boolean).map(email => email.toLowerCase());
+
+    const userEmails = user.emailAddresses?.map(e => e.emailAddress.toLowerCase()) || [];
+    const isEmailAdmin = userEmails.some(email => adminEmails.includes(email));
+
+    if (user.privateMetadata.role === "admin" || isEmailAdmin) {
+      req.userId = userId;
+      return next();
     }
 
-    req.userId = userId;
-    next();
+    return res.json({ success: false, message: "not authorized" });
 
   } catch (error) {
     return res.json({ success: false, message: "not authorized" });
